@@ -12,7 +12,9 @@ const { Pool } = pkg;
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 2345; // Default to 2345 for local, override with .env for VM
+const PORT = process.env.PORT || 2345;
+
+const PASS_CODE = process.env.TEACHER_PASSCODE || 'PASSWORD'
 
 // Database connection
 const pool = new Pool({
@@ -34,7 +36,7 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173', // Default to local frontend
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -42,8 +44,8 @@ app.use(express.json());
 
 // Rate limiting for login endpoint
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -63,6 +65,7 @@ const initDb = async () => {
         first_name VARCHAR(100) NOT NULL,
         last_name VARCHAR(100) NOT NULL,
         role VARCHAR(10) NOT NULL CHECK (role IN ('teacher', 'student')),
+        teacher_code VARCHAR(50), -- Added for teacher verification
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -72,42 +75,33 @@ const initDb = async () => {
       CREATE TABLE IF NOT EXISTS student_profiles (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users_new(id) ON DELETE CASCADE,
-
         email VARCHAR(100),
         telegram VARCHAR(100),
         birthday DATE,
         citizenship VARCHAR(100),
         phone VARCHAR(50),
-
         faculty VARCHAR(100),
         program VARCHAR(100),
         year INTEGER CHECK (year BETWEEN 1 AND 6),
         debts VARCHAR(100),
         edu_rating VARCHAR(50),
-
         digitalliteracyscore VARCHAR(20),
         pythonScore VARCHAR(20),
         dataAnalysisScore VARCHAR(20),
-
         primary_discipline VARCHAR(100),
         primary_group_size INTEGER,
-
         secondary_discipline VARCHAR(100),
         secondary_group_size INTEGER,
-
         data_analysis_answers TEXT[],
         python_programming_answers TEXT[],
         machine_learning_answers TEXT[],
         digital_literacy_answers TEXT[],
-
         motivation_text TEXT,
         achievements TEXT,
         experience TEXT,
-
         recommendation_available BOOLEAN DEFAULT false,
         teacher_email VARCHAR(255),
         questionnaire_completed BOOLEAN DEFAULT false,
-
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -118,7 +112,6 @@ const initDb = async () => {
         id SERIAL PRIMARY KEY,
         student_id INTEGER REFERENCES users_new(id) ON DELETE CASCADE,
         teacher_id INTEGER REFERENCES users_new(id) ON DELETE CASCADE,
-
         discipline VARCHAR(100) CHECK (
           discipline IN (
             'data_analysis',
@@ -137,7 +130,6 @@ const initDb = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
     console.log('Database tables created (or already exist) successfully!');
   } catch (error) {
     console.error('Error initializing database:', error);
@@ -151,7 +143,7 @@ const sendErrorResponse = (res, status, message) => {
 
 // User Registration
 const registerUser = async (userData) => {
-  const { email, password, firstName, lastName, role } = userData;
+  const { email, password, firstName, lastName, role, teacherCode } = userData;
   
   const existingUser = await pool.query(
     'SELECT * FROM users_new WHERE email = $1',
@@ -165,12 +157,14 @@ const registerUser = async (userData) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  const result = await pool.query(
-    `INSERT INTO users_new (email, password, first_name, last_name, role) 
-     VALUES ($1, $2, $3, $4, $5) 
-     RETURNING id, email, first_name, last_name, role`,
-    [email, hashedPassword, firstName, lastName, role]
-  );
+  const query = `
+    INSERT INTO users_new (email, password, first_name, last_name, role) 
+    VALUES ($1, $2, $3, $4, $5) 
+    RETURNING id, email, first_name, last_name, role
+  `;
+  const values = [email, hashedPassword, firstName, lastName, role];
+
+  const result = await pool.query(query, values);
 
   if (role !== 'teacher') {
     const studentId = result.rows[0].id;
@@ -201,28 +195,50 @@ app.get('/api/validate-session', async (req, res) => {
 
 app.post('/api/register', async (req, res) => {
   try {
-    const { email, password, firstName, lastName, role } = req.body;
-    
-    if (!email || !password || !firstName || !lastName || !role) {
+    const { email, password, first_name, last_name, role, teacher_code } = req.body;
+
+    // Validate required fields
+    if (!email || !password || !first_name || !last_name || !role) {
       return sendErrorResponse(res, 400, 'Все поля обязательны');
     }
 
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return sendErrorResponse(res, 400, 'Неверный формат почты');
     }
 
+    // Validate password length
     if (password.length < 6) {
       return sendErrorResponse(res, 400, 'Пароль должен быть не менее 6 символов');
     }
 
+    // Validate role
     if (!['teacher', 'student'].includes(role)) {
       return sendErrorResponse(res, 400, 'Указана недопустимая роль');
     }
 
-    const user = await registerUser({ email, password, firstName, lastName, role });
-    res.status(201).json({ success: true, ...user });
+    // Validate teacher_code for teachers
+    if (role === 'teacher' && (!teacher_code || teacher_code !== PASS_CODE)) {
+      return sendErrorResponse(res, 400, 'Неверный код преподавателя');
+    }
 
+    const user = await registerUser({
+      email,
+      password,
+      firstName: first_name,
+      lastName: last_name,
+      role,
+      teacherCode: teacher_code,
+    });
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'default_secret',
+      { expiresIn: '1h' }
+    );
+
+    res.status(201).json({ success: true, ...user, token });
   } catch (error) {
     console.error('Ошибка регистрации:', error);
     if (error.message.includes('already exists') || error.code === '23505') {
@@ -285,7 +301,6 @@ app.get('/api/students/:studentId/questionnaire', async (req, res) => {
   }
 });
 
-// Save questionnaire data
 app.post('/api/students/:studentId/questionnaire', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -398,7 +413,6 @@ app.post('/api/students/:studentId/questionnaire', async (req, res) => {
   }
 });
 
-// Получение всех доступных факультетов
 app.get('/api/faculties', async (req, res) => {
   try {
     const userId = req.query.userId;
@@ -421,7 +435,6 @@ app.get('/api/faculties', async (req, res) => {
   }
 });
 
-// Получение всех студентов (с учетом фильтров)
 app.get('/api/students', async (req, res) => {
   try {
     const { search, faculty, rating, discipline } = req.query;
@@ -476,7 +489,6 @@ app.get('/api/students', async (req, res) => {
   }
 });
 
-// Получение всех студентов, выбранных преподавателем N
 app.get('/api/teachers/:teacherId/students', async (req, res) => {
   try {
     const { teacherId } = req.params;
@@ -514,7 +526,6 @@ app.get('/api/teachers/:teacherId/students', async (req, res) => {
   }
 });
 
-// Получение всех карточек курсов, куда был выбран студент
 app.get('/api/students/:studentId/disciplines', async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -540,7 +551,6 @@ app.get('/api/students/:studentId/disciplines', async (req, res) => {
   }
 });
 
-// Book a student
 app.post('/api/bookings', async (req, res) => {
   try {
     const { studentId, teacherId, discipline, groupsCount, assistanceFormat, startDate, endDate, program, prog_faculty } = req.body;
@@ -584,7 +594,6 @@ app.delete('/api/bookings/:bookingId', async (req, res) => {
   }
 });
 
-// Поиск пользователя для выхода
 app.get('/api/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -603,7 +612,6 @@ app.get('/api/users/:userId', async (req, res) => {
   }
 });
 
-// Внесение пользователя при регистрации
 app.put('/api/users/:userId', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -652,7 +660,7 @@ app.put('/api/users/:userId', async (req, res) => {
       const query = `
         UPDATE users_new 
         SET ${updateFields.join(', ')}
-        WHERE id = $$  {valueCount}
+        WHERE id = $${valueCount}
         RETURNING id, email, first_name, last_name, role
       `;
 
@@ -677,7 +685,6 @@ app.put('/api/users/:userId', async (req, res) => {
   }
 });
 
-// Получение данных для личного кабинета
 app.get('/api/students/:studentId/profile', async (req, res) => {
   try {
     const { studentId } = req.params;
@@ -696,7 +703,6 @@ app.get('/api/students/:studentId/profile', async (req, res) => {
   }
 });
 
-// Обработчик внесения новой информации из личного кабинета
 app.put('/api/students/:studentId/profile', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -732,7 +738,7 @@ app.put('/api/students/:studentId/profile', async (req, res) => {
       const query = `
         UPDATE student_profiles 
         SET ${updateFields.join(', ')}
-        WHERE user_id =   $${valueCount}
+        WHERE user_id = $${valueCount}
         RETURNING *
       `;
 
@@ -770,7 +776,7 @@ if (process.env.NODE_ENV === 'production') {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err.stack);
-  return sendErrorResponse(res, 500, 'Ошибка при удалении бронирования');
+  return sendErrorResponse(res, 500, 'Что-то пошло не так');
 });
 
 // Start server

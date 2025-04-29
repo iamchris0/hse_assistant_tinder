@@ -8,11 +8,21 @@ interface User {
   last_name: string;
 }
 
+interface RegisterFormData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: 'teacher' | 'student';
+  teacherCode?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
+  register: (formData: RegisterFormData) => Promise<void>;
   logout: () => void;
   clearError: () => void;
 }
@@ -92,6 +102,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const register = async (formData: RegisterFormData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          role: formData.role,
+          teacher_code: formData.teacherCode,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Registration failed');
+      }
+      localStorage.setItem('token', data.token);
+      setUser({
+        id: data.id,
+        email: data.email,
+        role: data.role,
+        first_name: data.first_name,
+        last_name: data.last_name,
+      });
+    } catch (err: any) {
+      setError(err.message || 'Error registering');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
@@ -102,7 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, logout, clearError }}>
+    <AuthContext.Provider value={{ user, loading, error, login, register, logout, clearError }}>
       {children}
     </AuthContext.Provider>
   );
