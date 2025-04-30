@@ -12,13 +12,14 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: process.env.VITE_BACKEND_URL || 'http://localhost:5173',
+        target: 'http://localhost:2345/', // 'http://158.160.18.43:3000' ||
         changeOrigin: true,
       },
     },
   },
   build: {
     minify: 'terser',
+    chunkSizeWarningLimit: 1000, // Increase to 1000 kB
     sourcemap: false,
     rollupOptions: {
       output: {
