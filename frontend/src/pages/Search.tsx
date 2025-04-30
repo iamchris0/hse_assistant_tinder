@@ -4,10 +4,9 @@ import Header from '../components/Header';
 import StudentDetailsModal from './StudentDetailsModal';
 import { Loader2, Search as SearchIcon, Star, GraduationCap, Book, X, Send, Mail, Check, CheckCheck } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-
 
 interface Student {
   id: number;
@@ -59,7 +58,7 @@ const DISCIPLINES = [
 
 const PROGRAMS = [
   'Управление в креативных индустриях', 'Международные отношения', 'Химия',
-  'ИЯиМКК (РУС)', 'ИЯиМКК (АНГЛ)',
+  'ИЯиМКК (РУС)', 'ИЯиMКК (АНГЛ)',
   'Математика', 'Социология', 'Стратегия и продюсирование в коммуникациях',
   'Реклама и связи с общественностью', 'Кинопроизводство, Актеры',
   'Востоковедение', 'История', 'История искусств', 'Филология', 'Культурология',
@@ -69,13 +68,7 @@ const PROGRAMS = [
   'Мировая экономика', 'Политология', 'Экономика', 'Физика', 'Цифровой юрист', 'Право',
   'Бизнес-информатика','Язык, словесность и культура Кореи',
   'Египтология', 'Языки и литература ЮВ Азии'
-]
-.sort();
-
-const FACULTY = [
-  'ФЭН', 'ФКН', 'ФСН', 'Право', 'ВШБ'
-]
-.sort();
+].sort();
 
 const Search: React.FC = () => {
   const { user } = useAuth();
@@ -86,6 +79,7 @@ const Search: React.FC = () => {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [faculties, setFaculties] = useState<string[]>([]);
+  const [bookingFaculties, setBookingFaculties] = useState<string[]>([]);
   const [filters, setFilters] = useState({
     search: '',
     faculty: '',
@@ -131,6 +125,21 @@ const Search: React.FC = () => {
     } catch (error: any) {
       setErrorMessage(error.message);
       console.error('Error fetching faculties:', error);
+    }
+  };
+
+  const fetchBookingFaculties = async () => {
+    try {
+      const response = await fetch(`/api/faculties?flag=1`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Ошибка при получении факультетов для бронирования');
+      }
+      const data = await response.json();
+      setBookingFaculties(data.faculties);
+    } catch (error: any) {
+      setErrorMessage(error.message);
+      console.error('Error fetching booking faculties:', error);
     }
   };
 
@@ -219,14 +228,13 @@ const Search: React.FC = () => {
       }, 2200);
     } catch (error: any) {
       setErrorMessage(error.message || 'Ошибка при бронировании ассистента');
-      console.log('Error set from API:', error.message);
-      console.error('Ошибка при бронировании ассистента:', error);
     }
   };
 
   const openBookingModal = (student: Student) => {
     setSelectedStudent(student);
     setIsBookingOpen(true);
+    fetchBookingFaculties(); // Fetch faculties when the modal opens
     setBookingData({
       discipline: '',
       groupsCount: 1,
@@ -263,13 +271,18 @@ const Search: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      {errorMessage && (
-        <div
-          className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[1000]"
-        >
-          {errorMessage}
-        </div>
-      )}
+      <AnimatePresence>
+        {errorMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[1000]"
+          >
+            {errorMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <main className="max-w-screen-2xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold flex items-center gap-2 mb-6">
@@ -278,7 +291,6 @@ const Search: React.FC = () => {
           </h1>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-                      {/* grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 pl-2">
                 Поиск по ФИО
@@ -304,7 +316,7 @@ const Search: React.FC = () => {
                   <option key={faculty} value={faculty}>
                     {faculty}
                   </option>
-                )) : <option value="" disabled>No faculties available</option>}
+                )) : <option value="" disabled>Факультеты не найдены</option>}
               </select>
             </div>
 
@@ -337,10 +349,10 @@ const Search: React.FC = () => {
             </div>
           ) : (
             <motion.div 
-            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
             >
               {students.map((student) => (
                 <motion.div
@@ -406,7 +418,6 @@ const Search: React.FC = () => {
                       </div>
                       <div className="flex flex-col">
                         <span>{student.edu_program} ({student.year} курс)</span>
-                        {/* <span></span> */}
                       </div>
                     </div>
                   </div>
@@ -459,205 +470,232 @@ const Search: React.FC = () => {
           pageType='search'
         />
 
-        <Dialog
-          open={isBookingOpen}
-          onClose={() => setIsBookingOpen(false)}
-          className="fixed inset-0 z-10 overflow-y-auto bg-black bg-opacity-30"
-        >
-          <div className="flex items-center justify-center min-h-screen px-4">
-            <Dialog.Panel className="relative bg-white rounded-lg max-w-md w-full mx-auto p-6">
-              {!bookingSuccess ? (
-                <>
-                  <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-xl font-bold">Забронировать ассистента</h2>
-                    <button
-                      onClick={() => setIsBookingOpen(false)}
-                      className="text-gray-400 hover:text-gray-500"
-                    >
-                      <X className="h-6 w-6" />
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block pl-2 text-sm font-medium text-gray-700 mb-1">
-                        Укажите дисциплину <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={bookingData.discipline}
-                        onChange={(e) => setBookingData({
-                          ...bookingData,
-                          discipline: e.target.value
-                        })}
-                        className="pl-2 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-1"
-                        required
-                      >
-                        <option value="" disabled>-</option>
-                        {DISCIPLINES.map(discipline => (
-                          <option key={discipline.value} value={discipline.value}>
-                            {discipline.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block pl-2 text-sm font-medium text-gray-700 mb-1">
-                        Укажите факультет программы <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        list="prog_faculty"
-                        value={bookingData.prog_faculty}
-                        onChange={(e) => setBookingData({
-                          ...bookingData,
-                          prog_faculty: e.target.value
-                        })}
-                        placeholder="Введите факультет..."
-                        className="pl-2 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-1"
-                        required
-                      />
-                      <datalist id="prog_faculty">
-                        {FACULTY.map(prog_faculty => (
-                          <option key={prog_faculty} value={prog_faculty} />
-                        ))}
-                      </datalist>
-                    </div>
-
-                    <div>
-                      <label className="block pl-2 text-sm font-medium text-gray-700 mb-1">
-                        Укажите образовательную программу <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        list="programs"
-                        value={bookingData.program}
-                        onChange={(e) => setBookingData({
-                          ...bookingData,
-                          program: e.target.value
-                        })}
-                        placeholder="Введите программу..."
-                        className="pl-2 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-1"
-                        required
-                      />
-                      <datalist id="programs">
-                        {PROGRAMS.map(program => (
-                          <option key={program} value={program} />
-                        ))}
-                      </datalist>
-                    </div>
-
-                    <div className="flex flex-row space-x-4">
-                      <div className="flex-1">
-                        <label className="block pl-2 text-sm font-medium text-gray-700 mb-1">
-                          Укажите дату начала <span className="text-red-500">*</span>
-                        </label>
-                        <DatePicker
-                          selected={bookingData.startDate}
-                          onChange={(date: Date | null) => setBookingData({
-                            ...bookingData,
-                            startDate: date
-                          })}
-                          dateFormat="dd / MM / yyyy"
-                          className="pl-2 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-1"
-                          placeholderText="Выберите дату"
-                          required
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block pl-2 text-sm font-medium text-gray-700 mb-1">
-                          Укажите дату окончания <span className="text-red-500">*</span>
-                        </label>
-                        <DatePicker
-                          selected={bookingData.endDate}
-                          onChange={(date: Date | null) => setBookingData({
-                            ...bookingData,
-                            endDate: date
-                          })}
-                          dateFormat="dd / MM / yyyy"
-                          className="pl-2 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-50 py-1"
-                          placeholderText="Выберите дату"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block pl-2 text-sm font-medium text-gray-700 mb-2">
-                        Укажите кол-во групп
-                      </label>
-                      <div className="grid grid-cols-2 gap-4">
-                        {[1, 2].map(num => (
+        <AnimatePresence>
+          {isBookingOpen && (
+            <Dialog
+              open={isBookingOpen}
+              onClose={() => setIsBookingOpen(false)}
+              className="fixed inset-0 z-10 overflow-y-auto bg-black bg-opacity-30"
+            >
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="fixed inset-0 bg-black bg-opacity-30"
+              />
+              <div className="flex items-center justify-center min-h-screen px-4">
+                <Dialog.Panel as="div">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    className="relative bg-white rounded-lg max-w-4xl w-full mx-auto p-8"
+                  >
+                    {!bookingSuccess ? (
+                      <>
+                        <div className="flex justify-between items-center mb-8">
+                          <h2 className="text-xl font-bold">Забронировать ассистента</h2>
                           <button
-                            key={num}
-                            type="button"
-                            onClick={() => setBookingData({
-                              ...bookingData,
-                              groupsCount: num
-                            })}
-                            className={`py-2 px-4 rounded-md text-sm font-medium ${
-                              bookingData.groupsCount === num
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                            onClick={() => setIsBookingOpen(false)}
+                            className="text-gray-400 hover:text-gray-500"
                           >
-                            {num} {num === 1 ? 'группа' : 'группы'}
+                            <X className="h-6 w-6" />
                           </button>
-                        ))}
-                      </div>
-                    </div>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block pl-2 text-sm font-medium text-gray-700 mb-1">
+                              Укажите дисциплину <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                              value={bookingData.discipline}
+                              onChange={(e) => setBookingData({
+                                ...bookingData,
+                                discipline: e.target.value
+                              })}
+                              className="pl-2 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-1"
+                              required
+                            >
+                              <option value="" disabled>-</option>
+                              {DISCIPLINES.map(discipline => (
+                                <option key={discipline.value} value={discipline.value}>
+                                  {discipline.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                    <div>
-                      <label className="block pl-2 text-sm font-medium text-gray-700 mb-2">
-                        Укажите формат ассистирования
-                      </label>
-                      <div className="grid grid-cols-2 gap-4">
-                        {[
-                          { value: 'money', label: 'Деньги' },
-                          { value: 'credits', label: 'Кредиты' }
-                        ].map(option => (
+                          <div>
+                            <label className="block pl-2 text-sm font-medium text-gray-700 mb-1">
+                              Укажите факультет программы <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              list="prog_faculty"
+                              value={bookingData.prog_faculty}
+                              onChange={(e) => setBookingData({
+                                ...bookingData,
+                                prog_faculty: e.target.value
+                              })}
+                              placeholder="Введите факультет..."
+                              className="pl-2 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-1"
+                              required
+                            />
+                            <datalist id="prog_faculty">
+                              {bookingFaculties.map(faculty => (
+                                <option key={faculty} value={faculty} />
+                              ))}
+                            </datalist>
+                          </div>
+
+                          <div>
+                            <label className="block pl-2 text-sm font-medium text-gray-700 mb-1">
+                              Укажите образовательную программу <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              list="programs"
+                              value={bookingData.program}
+                              onChange={(e) => setBookingData({
+                                ...bookingData,
+                                program: e.target.value
+                              })}
+                              placeholder="Введите программу..."
+                              className="pl-2 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-1"
+                              required
+                            />
+                            <datalist id="programs">
+                              {PROGRAMS.map(program => (
+                                <option key={program} value={program} />
+                              ))}
+                            </datalist>
+                          </div>
+
+                          <div>
+                            <div className="flex flex-row space-x-4 mb-1">
+                              <div className="flex-1">
+                                <label className="block pl-2 text-sm font-medium text-gray-700 whitespace-nowrap">
+                                  Укажите дату начала <span className="text-red-500">*</span>
+                                </label>
+                              </div>
+                              <div className="flex-1">
+                                <label className="block pl-2 text-sm font-medium text-gray-700 whitespace-nowrap">
+                                  Укажите дату окончания <span className="text-red-500">*</span>
+                                </label>
+                              </div>
+                            </div>
+                            <div className="flex flex-row space-x-4">
+                              <div className="flex-1">
+                                <DatePicker
+                                  selected={bookingData.startDate}
+                                  onChange={(date: Date | null) => setBookingData({
+                                    ...bookingData,
+                                    startDate: date
+                                  })}
+                                  dateFormat="dd / MM / yyyy"
+                                  className="pl-2 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-1"
+                                  placeholderText="Выберите дату"
+                                  required
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <DatePicker
+                                  selected={bookingData.endDate}
+                                  onChange={(date: Date | null) => setBookingData({
+                                    ...bookingData,
+                                    endDate: date
+                                  })}
+                                  dateFormat="dd / MM / yyyy"
+                                  className="pl-2 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-1"
+                                  placeholderText="Выберите дату"
+                                  required
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block pl-2 text-sm font-medium text-gray-700 mb-2">
+                              Укажите кол-во групп
+                            </label>
+                            <div className="grid grid-cols-2 gap-4">
+                              {[1, 2].map(num => (
+                                <button
+                                  key={num}
+                                  type="button"
+                                  onClick={() => setBookingData({
+                                    ...bookingData,
+                                    groupsCount: num
+                                  })}
+                                  className={`py-2 px-4 rounded-md text-sm font-medium ${
+                                    bookingData.groupsCount === num
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {num} {num === 1 ? 'группа' : 'группы'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block pl-2 text-sm font-medium text-gray-700 mb-2">
+                              Укажите формат ассистирования
+                            </label>
+                            <div className="grid grid-cols-2 gap-4">
+                              {[
+                                { value: 'money', label: 'Деньги' },
+                                { value: 'credits', label: 'Кредиты' }
+                              ].map(option => (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => setBookingData({
+                                    ...bookingData,
+                                    assistanceFormat: option.value as 'money' | 'credits'
+                                  })}
+                                  className={`py-2 px-4 rounded-md text-sm font-medium ${
+                                    bookingData.assistanceFormat === option.value
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
                           <button
-                            key={option.value}
-                            type="button"
-                            onClick={() => setBookingData({
-                              ...bookingData,
-                              assistanceFormat: option.value as 'money' | 'credits'
-                            })}
-                            className={`py-2 px-4 rounded-md text-sm font-medium ${
-                              bookingData.assistanceFormat === option.value
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                            onClick={handleBooking}
+                            disabled={!bookingData.discipline || !bookingData.program || !bookingData.startDate || !bookingData.endDate}
+                            className="w-full py-3 px-4 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {option.label}
+                            Подтвердить выбор
                           </button>
-                        ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-6">
+                        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                          <Check className="h-6 w-6 text-green-600" />
+                        </div>
+                        <h3 className="mt-3 text-lg font-medium text-gray-900">It's a match 🎉</h3>
+                        <p className="mt-2 text-lg text-gray-500">
+                          Ассистент успешно забронирован!
+                        </p>
                       </div>
-                    </div>
-
-                    <button
-                      onClick={handleBooking}
-                      disabled={!bookingData.discipline || !bookingData.program || !bookingData.startDate || !bookingData.endDate}
-                      className="w-full py-3 px-4 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Подтвердить выбор
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-6">
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-                    <Check className="h-6 w-6 text-green-600" />
-                  </div>
-                  <h3 className="mt-3 text-lg font-medium text-gray-900">It's a match 🎉</h3>
-                  <p className="mt-2 text-lg text-gray-500">
-                    Ассистент успешно забронирован!
-                  </p>
-                </div>
-              )}
-            </Dialog.Panel>
-          </div>
-        </Dialog>
+                    )}
+                  </motion.div>
+                </Dialog.Panel>
+              </div>
+            </Dialog>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

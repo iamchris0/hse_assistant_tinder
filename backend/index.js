@@ -36,7 +36,7 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173/',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -416,18 +416,28 @@ app.post('/api/students/:studentId/questionnaire', async (req, res) => {
 app.get('/api/faculties', async (req, res) => {
   try {
     const userId = req.query.userId;
+    const flag = req.query.flag;
     let query;
     let queryParams = [];
-    if (userId) {
-      query = 'SELECT DISTINCT b.prog_faculty FROM bookings b LEFT JOIN student_profiles sp ON b.student_id = sp.user_id WHERE b.teacher_id = $1 ORDER BY b.prog_faculty';
-      queryParams = [userId];
+    let result;
+    if (flag === undefined) {
+      if (userId) {
+        query = 'SELECT DISTINCT b.prog_faculty FROM bookings b LEFT JOIN student_profiles sp ON b.student_id = sp.user_id WHERE b.teacher_id = $1 AND active = true ORDER BY b.prog_faculty';
+        queryParams = [userId];
+      } else {
+        query = 'SELECT DISTINCT faculty as prog_faculty FROM student_profiles WHERE faculty IS NOT NULL ORDER BY faculty';
+      }
+      result = await pool.query(query, queryParams);
     } else {
-      query = 'SELECT DISTINCT faculty FROM student_profiles WHERE faculty IS NOT NULL ORDER BY faculty';
+      query = 'SELECT DISTINCT prog_faculty FROM bookings WHERE prog_faculty IS NOT NULL AND active = true ORDER BY prog_faculty';
+      result = await pool.query(query);
+      if (result.rows.length === 0) {
+        result.rows.push({ prog_faculty: 'ФКН' }, { prog_faculty: 'ФЭН' }, { prog_faculty: 'ФГН' }, { prog_faculty: 'ФСН' });
+      }
     }
-    const result = await pool.query(query, queryParams);
     res.json({ 
       success: true, 
-      faculties: result.rows.map(row => userId ? row.prog_faculty : row.faculty).filter(faculty => faculty !== null)
+      faculties: result.rows.map(row => row.prog_faculty).filter(faculty => faculty !== null)
     });
   } catch (error) {
     console.error('Ошибка получения факультетов:', error);
@@ -590,7 +600,7 @@ app.delete('/api/bookings/:bookingId', async (req, res) => {
     res.json({ success: true, message: 'Бронирование успешно удалено' });
   } catch (error) {
     console.error('Ошибка удаления бронирования:', error);
-    return sendErrorResponse(res, 500, 'Ошибка при удалении бронирования');
+    return sendErrorResponse(res, 500, 'Ошибка при удаления бронирования');
   }
 });
 
@@ -762,16 +772,6 @@ app.put('/api/students/:studentId/profile', async (req, res) => {
     client.release();
   }
 });
-
-// Serve frontend static files on VM (production)
-if (process.env.NODE_ENV === 'production') {
-  const path = await import('path');
-  const __dirname = path.dirname(new URL(import.meta.url).pathname);
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
-  });
-}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

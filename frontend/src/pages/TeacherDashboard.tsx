@@ -4,7 +4,7 @@ import Header from '../components/Header';
 import StudentDetailsModal from './StudentDetailsModal';
 import { Star, GraduationCap, Book, Send, CreditCard, CalendarDays } from 'lucide-react';
 import { Dialog } from '@headlessui/react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Student {
   id: number;
@@ -73,6 +73,8 @@ const Teach_Dashboard: React.FC = () => {
     faculty: '',
     discipline: ''
   });
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.role === 'teacher') {
@@ -85,14 +87,19 @@ const Teach_Dashboard: React.FC = () => {
     filterStudents();
   }, [filters, students]);
 
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
   useEffect(() => {
     if (errorMessage) {
       const timer = setTimeout(() => setErrorMessage(null), 3000);
       return () => clearTimeout(timer);
     }
   }, [errorMessage]);
+
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   const fetchFaculties = async () => {
     try {
@@ -149,21 +156,21 @@ const Teach_Dashboard: React.FC = () => {
 
   const handleRemoveStudent = async () => {
     if (!selectedStudent) return;
-  
     try {
       const response = await fetch(`/api/bookings/${selectedStudent.booking_id}`, {
         method: 'DELETE',
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка при удалении студента');
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Ошибка при удалении бронирования');
       }
-      setStudents(students.filter(s => s.id !== selectedStudent.id));
-      setFilteredStudents(filteredStudents.filter(s => s.id !== selectedStudent.id));
+      setStudents(students.filter(s => s.booking_id !== selectedStudent.booking_id));
+      setFilteredStudents(filteredStudents.filter(s => s.booking_id !== selectedStudent.booking_id));
+      setSuccessMessage('Студент успешно удален');
       setIsRemoveConfirmOpen(false);
       setSelectedStudent(null);
     } catch (error: any) {
-      setErrorMessage(error.message);
+      setErrorMessage(error.message || 'Не удалось удалить бронирование');
     }
   };
 
@@ -180,16 +187,28 @@ const Teach_Dashboard: React.FC = () => {
   
   return (
     <div className="min-h-screen bg-gray-50">
-      {errorMessage && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50"
-        >
-          {errorMessage}
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {errorMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50"
+          >
+            {errorMessage}
+          </motion.div>
+        )}
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50"
+          >
+            {successMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <Header />
       
@@ -281,7 +300,7 @@ const Teach_Dashboard: React.FC = () => {
                         <h3 className="text-lg font-medium text-gray-900">
                           {student.first_name} {student.last_name}
                         </h3>
-                        <div className="flex items-center">
+                        <div className="flex items-center bg-yellow-50 px-2 py-1 rounded-full">
                           <Star className="h-5 w-5 text-yellow-400 fill-current" />
                           <span className="ml-1" style={{ color: '#29cca3' }}>
                             {student.edu_rating === null ? '-' : student.edu_rating}
@@ -360,38 +379,52 @@ const Teach_Dashboard: React.FC = () => {
       />
 
       {/* Remove Confirmation Modal */}
-      <Dialog
-        open={isRemoveConfirmOpen}
-        onClose={() => setIsRemoveConfirmOpen(false)}
-        className="fixed inset-0 z-10 overflow-y-auto"
-      >
-        <div className="flex items-center justify-center min-h-screen px-4">
-          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-30" />
-
-          <div className="relative bg-white rounded-lg max-w-2xl w-full mx-auto p-5">
-            <div className="text-center">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Вы уверены, что хотите отозвать выбранного студента?
-              </h3>
-              
-              <div className="mt-6 flex justify-center space-x-4">
-                <button
-                  onClick={() => setIsRemoveConfirmOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleRemoveStudent}
-                  className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                >
-                  Подтвердить
-                </button>
-              </div>
+      <AnimatePresence>
+        {isRemoveConfirmOpen && (
+          <Dialog
+            open={isRemoveConfirmOpen}
+            onClose={() => setIsRemoveConfirmOpen(false)}
+            className="fixed inset-0 z-10 overflow-y-auto"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-30"
+            />
+            <div className="flex items-center justify-center min-h-screen px-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="relative bg-white rounded-lg max-w-2xl w-full mx-auto p-5"
+              >
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Вы уверены, что хотите отозвать выбранного студента?
+                  </h3>
+                  
+                  <div className="mt-6 flex justify-center space-x-4">
+                    <button
+                      onClick={() => setIsRemoveConfirmOpen(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={handleRemoveStudent}
+                      className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                      Подтвердить
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
             </div>
-          </div>
-        </div>
-      </Dialog>
+          </Dialog>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
