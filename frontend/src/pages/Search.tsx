@@ -365,14 +365,12 @@ const Search: React.FC = () => {
               >
                 <div className="p-6 flex flex-col flex-1">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-semibold text-gray-900">
+                    <h4 className="text-l font-bold text-gray-900">
                       {student.first_name} {student.last_name}
-                    </h3>
+                    </h4>
                     <div className="flex items-center bg-yellow-50 px-2 py-1 rounded-full">
                       <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                      <span className="ml-1 font-medium" style={{
-                        color: '#10b981'
-                      }}>
+                      <span className="ml-1 font-medium text-sm" style={{ color: '#10b981' }}>
                         {student.edu_rating === null ? '-' : student.edu_rating}
                       </span>
                     </div>
