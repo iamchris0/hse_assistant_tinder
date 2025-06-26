@@ -115,6 +115,14 @@ const PROGRAMS = [
   'Цифровые платформы и логистика', 'Экономика и анализ данных'
 ].sort();
 
+// Helper to format date as YYYY-MM-DD in local time
+const formatDateLocal = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const Search: React.FC = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
@@ -323,8 +331,8 @@ const Search: React.FC = () => {
           discipline: bookingData.discipline,
           groupsCount: bookingData.groupsCount,
           assistanceFormat: bookingData.assistanceFormat,
-          startDate: bookingData.startDate.toISOString().split('T')[0],
-          endDate: bookingData.endDate.toISOString().split('T')[0],
+          startDate: formatDateLocal(bookingData.startDate),
+          endDate: formatDateLocal(bookingData.endDate),
           program: bookingData.program,
         }),
       });
