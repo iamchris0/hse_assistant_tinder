@@ -135,7 +135,7 @@ const Register: React.FC = () => {
             
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                Моя должность
+                Мой статус
               </label>
               <div className="relative flex items-center">
                 <div className="absolute left-3">

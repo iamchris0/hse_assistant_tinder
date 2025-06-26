@@ -34,10 +34,10 @@ interface StudentProfile {
 }
 
 const DISCIPLINES = [
-  { value: 'data_analysis', label: 'Анализ данных' },
+  { value: 'digital_literacy', label: 'Цифровая грамотность' },
   { value: 'python_programming', label: 'Программирование на Python' },
-  { value: 'machine_learning', label: 'Машинное обучение' },
-  { value: 'digital_literacy', label: 'Цифровая грамотность' }
+  { value: 'data_analysis', label: 'Анализ данных' },
+  { value: 'machine_learning', label: 'Машинное обучение' }
 ];
 
 const AccountSettings: React.FC = () => {
@@ -72,6 +72,31 @@ const AccountSettings: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [errorMessage]);
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const response = await fetch(`/api/users/${user?.id}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Ошибка при получении информации пользователя');
+        }
+        const data = await response.json();
+        setBasicInfo({
+          email: data.user.email || '',
+          password: '',
+          first_name: data.user.first_name || '',
+          last_name: data.user.last_name || ''
+        });
+      } catch (error: any) {
+        setErrorMessage(error.message);
+      }
+    };
+
+    if (user?.id) {
+      fetchUserInfo();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user?.role === 'student') {
@@ -176,134 +201,137 @@ const AccountSettings: React.FC = () => {
               )}
             </AnimatePresence>
 
-            {/* Basic Info Section */}
-            <div className="mb-8">
-              <button
-                onClick={() => toggleSection('basic')}
-                className="w-full flex justify-between items-center text-lg font-semibold text-gray-900 mb-4"
-              >
-                <span className="flex items-center">
-                  <User className="h-5 w-5 mr-2" />
-                  Основная информация
-                </span>
-                {expandedSections.basic ? (
-                  <ChevronUp className="h-5 w-5" />
-                ) : (
-                  <ChevronDown className="h-5 w-5" />
-                )}
-              </button>
-
-              {expandedSections.basic && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="space-y-4"
+            {/* Teacher View */}
+            {user?.role === 'teacher' && (
+              <div className="mb-8">
+                <button
+                  onClick={() => toggleSection('personal')}
+                  className="w-full flex justify-between items-center text-lg font-semibold text-gray-900 mb-4"
                 >
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Email
-                    </label>
-                    <div className="mt-1 relative rounded-md shadow-sm">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
-                        <Mail className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        type="email"
-                        value={basicInfo.email}
-                        onChange={(e) => setBasicInfo({ ...basicInfo, email: e.target.value })}
-                        className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
+                  <span className="flex items-center">
+                    <CircleUser className="h-5 w-5 mr-2" />
+                    Личная информация
+                  </span>
+                  {expandedSections.personal ? (
+                    <ChevronUp className="h-5 w-5" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5" />
+                  )}
+                </button>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Пароль
-                    </label>
-                    <div className="mt-1 relative rounded-md shadow-sm">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
-                        <Lock className="h-5 w-5 text-gray-400" />
+                {expandedSections.personal && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="space-y-4"
+                  >
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Email
+                        </label>
+                        <div className="mt-1 relative rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
+                            <Mail className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <input
+                            type="email"
+                            value={basicInfo.email}
+                            onChange={(e) => setBasicInfo({ ...basicInfo, email: e.target.value })}
+                            className="pl-10 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
                       </div>
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={basicInfo.password}
-                        onChange={(e) => setBasicInfo({ ...basicInfo, password: e.target.value })}
-                        className="pl-10 pr-10 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      />
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Новый пароль
+                        </label>
+                        <div className="mt-1 relative rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
+                            <Lock className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={basicInfo.password}
+                            onChange={(e) => setBasicInfo({ ...basicInfo, password: e.target.value })}
+                            className="pl-10 pr-10 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-5 w-5 text-gray-400" />
+                            ) : (
+                              <Eye className="h-5 w-5 text-gray-400" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm mt-1 font-medium text-gray-700">
+                          Имя
+                        </label>
+                        <input
+                          type="text"
+                          value={basicInfo.first_name}
+                          onChange={(e) => setBasicInfo({ ...basicInfo, first_name: e.target.value })}
+                          className="mt-2 pl-2 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm mt-1 font-medium text-gray-700">
+                          Фамилия
+                        </label>
+                        <input
+                          type="text"
+                          value={basicInfo.last_name}
+                          onChange={(e) => setBasicInfo({ ...basicInfo, last_name: e.target.value })}
+                          className="mt-2 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
                       <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={handleBasicInfoSave}
+                        className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
-                        {showPassword ? (
-                          <EyeOff className="h-5 w-5 text-gray-400" />
-                        ) : (
-                          <Eye className="h-5 w-5 text-gray-400" />
-                        )}
+                        <Save className="h-4 w-4 mr-2" />
+                        Сохранить
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
+                )}
+              </div>
+            )}
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Имя
-                      </label>
-                      <input
-                        type="text"
-                        value={basicInfo.first_name}
-                        onChange={(e) => setBasicInfo({ ...basicInfo, first_name: e.target.value })}
-                        className="mt-2 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Фамилия
-                      </label>
-                      <input
-                        type="text"
-                        value={basicInfo.last_name}
-                        onChange={(e) => setBasicInfo({ ...basicInfo, last_name: e.target.value })}
-                        className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <button
-                      onClick={handleBasicInfoSave}
-                      className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Сохранить
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </div>
-
-            {/* Student-specific sections */}
+            {/* Student View */}
             {user?.role === 'student' && studentProfile && (
               <>
-                {/* Personal Info Section */}
+                {/* Combined Basic and Personal Info Section */}
                 <div className="mb-8">
                   <button
-                    onClick={() => toggleSection('personal')}
+                    onClick={() => toggleSection('basic')}
                     className="w-full flex justify-between items-center text-lg font-semibold text-gray-900 mb-4"
                   >
                     <span className="flex items-center">
-                      <CircleUser className="h-5 w-5 mr-2" />
+                      <User className="h-5 w-5 mr-2" />
                       Личная информация
                     </span>
-                    {expandedSections.personal ? (
+                    {expandedSections.basic ? (
                       <ChevronUp className="h-5 w-5" />
                     ) : (
                       <ChevronDown className="h-5 w-5" />
                     )}
                   </button>
 
-                  {expandedSections.personal && (
+                  {expandedSections.basic && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
@@ -311,6 +339,75 @@ const AccountSettings: React.FC = () => {
                       className="space-y-4"
                     >
                       <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Email
+                          </label>
+                          <div className="mt-1 relative rounded-md shadow-sm">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
+                              <Mail className="h-5 w-5 text-gray-400" />
+                            </div>
+                            <input
+                              type="email"
+                              value={basicInfo.email}
+                              onChange={(e) => setBasicInfo({ ...basicInfo, email: e.target.value })}
+                              className="pl-10 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Новый пароль
+                          </label>
+                          <div className="mt-1 relative rounded-md shadow-sm">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
+                              <Lock className="h-5 w-5 text-gray-400" />
+                            </div>
+                            <input
+                              type={showPassword ? "text" : "password"}
+                              value={basicInfo.password}
+                              onChange={(e) => setBasicInfo({ ...basicInfo, password: e.target.value })}
+                              className="pl-10 pr-10 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-5 w-5 text-gray-400" />
+                              ) : (
+                                <Eye className="h-5 w-5 text-gray-400" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Имя
+                          </label>
+                          <input
+                            type="text"
+                            value={basicInfo.first_name}
+                            onChange={(e) => setBasicInfo({ ...basicInfo, first_name: e.target.value })}
+                            className="mt-2 pl-2 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Фамилия
+                          </label>
+                          <input
+                            type="text"
+                            value={basicInfo.last_name}
+                            onChange={(e) => setBasicInfo({ ...basicInfo, last_name: e.target.value })}
+                            className="mt-2 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700">
                             Telegram
@@ -326,7 +423,7 @@ const AccountSettings: React.FC = () => {
                                 ...studentProfile,
                                 telegram: e.target.value
                               })}
-                              className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                              className="pl-10 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </div>
                         </div>
@@ -346,7 +443,7 @@ const AccountSettings: React.FC = () => {
                                 ...studentProfile,
                                 phone: e.target.value
                               })}
-                              className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                              className="pl-10 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </div>
                         </div>
@@ -366,7 +463,7 @@ const AccountSettings: React.FC = () => {
                                 ...studentProfile,
                                 citizenship: e.target.value
                               })}
-                              className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                              className="pl-10 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </div>
                         </div>
@@ -381,12 +478,12 @@ const AccountSettings: React.FC = () => {
                             </div>
                             <input
                               type="date"
-                              value={studentProfile.birthday}
+                              value={studentProfile.birthday ? new Date(studentProfile.birthday).toISOString().split('T')[0] : ''}
                               onChange={(e) => setStudentProfile({
                                 ...studentProfile,
                                 birthday: e.target.value
                               })}
-                              className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                              className="pl-10 block w-full p-2 rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             />
                           </div>
                         </div>
@@ -394,7 +491,10 @@ const AccountSettings: React.FC = () => {
 
                       <div className="flex justify-end">
                         <button
-                          onClick={() => handleStudentProfileSave('personal')}
+                          onClick={() => {
+                            handleBasicInfoSave();
+                            handleStudentProfileSave('personal');
+                          }}
                           className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           <Save className="h-4 w-4 mr-2" />
@@ -441,7 +541,7 @@ const AccountSettings: React.FC = () => {
                               ...studentProfile,
                               faculty: e.target.value
                             })}
-                            className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
 
@@ -456,7 +556,7 @@ const AccountSettings: React.FC = () => {
                               ...studentProfile,
                               program: e.target.value
                             })}
-                            className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
 
@@ -470,7 +570,7 @@ const AccountSettings: React.FC = () => {
                               ...studentProfile,
                               year: parseInt(e.target.value)
                             })}
-                            className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                           >
                             {[1, 2, 3, 4, 5, 6].map((year) => (
                               <option key={year} value={year}>
@@ -491,7 +591,7 @@ const AccountSettings: React.FC = () => {
                               ...studentProfile,
                               edu_rating: e.target.value
                             })}
-                            className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
                       </div>
@@ -506,7 +606,7 @@ const AccountSettings: React.FC = () => {
                             ...studentProfile,
                             debts: e.target.value
                           })}
-                          className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="Нет">Нет</option>
                           <option value="Да">Да</option>
@@ -569,7 +669,7 @@ const AccountSettings: React.FC = () => {
                                 ...studentProfile,
                                 primary_discipline: e.target.value
                               })}
-                              className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                              className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             >
                               {DISCIPLINES.map((discipline) => (
                                 <option key={discipline.value} value={discipline.value}>
@@ -589,7 +689,7 @@ const AccountSettings: React.FC = () => {
                                 ...studentProfile,
                                 primary_group_size: parseInt(e.target.value)
                               })}
-                              className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                              className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             >
                               <option value={1}>1 группа</option>
                               <option value={2}>2 группы</option>
@@ -614,7 +714,7 @@ const AccountSettings: React.FC = () => {
                                 ...studentProfile,
                                 secondary_discipline: e.target.value
                               })}
-                              className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                              className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                             >
                               <option value="">Нет</option>
                               {DISCIPLINES.filter(d => d.value !== studentProfile.primary_discipline).map((discipline) => (
@@ -636,7 +736,7 @@ const AccountSettings: React.FC = () => {
                                   ...studentProfile,
                                   secondary_group_size: parseInt(e.target.value)
                                 })}
-                                className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                               >
                                 <option value={1}>1 группа</option>
                                 <option value={2}>2 группы</option>
@@ -694,7 +794,7 @@ const AccountSettings: React.FC = () => {
                             motivation_text: e.target.value
                           })}
                           rows={4}
-                          className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          className="mt-1 pl-2 block p-1 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
 
@@ -709,7 +809,7 @@ const AccountSettings: React.FC = () => {
                             achievements: e.target.value
                           })}
                           rows={4}
-                          className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          className="mt-1 pl-2 block p-1 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
 
@@ -724,7 +824,7 @@ const AccountSettings: React.FC = () => {
                             experience: e.target.value
                           })}
                           rows={4}
-                          className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          className="mt-1 pl-2 block p-1 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
 
@@ -776,7 +876,7 @@ const AccountSettings: React.FC = () => {
                             ...studentProfile,
                             recommendation_available: e.target.value === 'yes'
                           })}
-                          className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="yes">Да</option>
                           <option value="no">Нет</option>
@@ -795,7 +895,7 @@ const AccountSettings: React.FC = () => {
                               ...studentProfile,
                               teacher_email: e.target.value
                             })}
-                            className="mt-1 pl-2 block w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                            className="mt-1 pl-2 block p-2 w-full rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
                       )}

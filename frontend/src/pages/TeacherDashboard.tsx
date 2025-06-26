@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface Student {
   id: number;
   discipline: string;
-  prog_faculty: string;
+  // prog_faculty: string;
   program: string;
   groups_count: number;
   assistance_format: string;
@@ -43,6 +43,13 @@ interface Student {
   experience: string;
   teacher_email: string;
   booking_id: number;
+  program_count: number;
+  total_groups: number;
+  program_groups: number;
+  booked_programs: Array<{
+    program: string;
+    groups: number;
+  }>;
 }
 
 const formatDate = (date: Date): string => {
@@ -53,10 +60,10 @@ const formatDate = (date: Date): string => {
 };
 
 const DISCIPLINES = [
+  { value: 'digital_literacy', label: 'Цифровая грамотность' },
+  { value: 'python_programming', label: 'Программирование на Python' },
   { value: 'data_analysis', label: 'Анализ данных' },
-  { value: 'python_programming', label: 'Python программирование' },
-  { value: 'machine_learning', label: 'Машинное обучение' },
-  { value: 'digital_literacy', label: 'Цифровая грамотность' }
+  { value: 'machine_learning', label: 'Машинное обучение' }
 ];
 
 const Teach_Dashboard: React.FC = () => {
@@ -67,10 +74,10 @@ const Teach_Dashboard: React.FC = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [faculties, setFaculties] = useState<string[]>([]);
+  const [programs, setPrograms] = useState<string[]>([]);
   const [filters, setFilters] = useState({
     search: '',
-    faculty: '',
+    program: '',
     discipline: ''
   });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -79,7 +86,7 @@ const Teach_Dashboard: React.FC = () => {
   useEffect(() => {
     if (user?.role === 'teacher') {
       fetchBookedStudents();
-      fetchFaculties();
+      fetchPrograms();
     }
   }, [user]);
 
@@ -101,15 +108,15 @@ const Teach_Dashboard: React.FC = () => {
     }
   }, [successMessage]);
 
-  const fetchFaculties = async () => {
+  const fetchPrograms = async () => {
     try {
-      const response = await fetch(`/api/faculties?userId=${user?.id}`);
+      const response = await fetch(`/api/programs?userId=${user?.id}`);
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Ошибка при получении факультетов');
+        throw new Error(errorData.message || 'Ошибка при получении программ');
       }
       const data = await response.json();
-      setFaculties(data.faculties);
+      setPrograms(data.programs);
     } catch (error: any) {
       setErrorMessage(error.message);
     }
@@ -143,8 +150,8 @@ const Teach_Dashboard: React.FC = () => {
       );
     }
 
-    if (filters.faculty) {
-      filtered = filtered.filter(student => student.faculty === filters.faculty);
+    if (filters.program) {
+      filtered = filtered.filter(student => student.program === filters.program);
     }
 
     if (filters.discipline) {
@@ -215,7 +222,7 @@ const Teach_Dashboard: React.FC = () => {
       <main className="max-w-screen-2xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold mb-6 px-4 sm:px-0">
-            Мои группы
+            Мои ассистенты
           </h1>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-6">
@@ -233,21 +240,21 @@ const Teach_Dashboard: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1 pl-2">Факультет</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1 pl-2">ОП дисциплины</label>
               <select
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 py-1"
-                value={filters.faculty}
-                onChange={(e) => setFilters(prev => ({ ...prev, faculty: e.target.value }))}
+                value={filters.program}
+                onChange={(e) => setFilters(prev => ({ ...prev, program: e.target.value }))}
               >
                 <option value="">-</option>
-                {faculties.length > 0 && faculties.every(f => f) ? (
-                  faculties.map((faculty, index) => (
-                    <option key={`${faculty}-${index}`} value={faculty}>
-                      {faculty}
+                {programs.length > 0 && programs.every(f => f) ? (
+                  programs.map((program, index) => (
+                    <option key={`${program}-${index}`} value={program}>
+                      {program}
                     </option>
                   ))
                 ) : (
-                  <option value="" disabled>No faculties available</option>
+                  <option value="" disabled>Нет доступных программ</option>
                 )}
               </select>
             </div>
@@ -270,14 +277,14 @@ const Teach_Dashboard: React.FC = () => {
           </div>
 
           {filteredStudents.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
+            <div className="text-center py-10 bg-white rounded-lg shadow">
               <div className="text-gray-400 mb-2">
                 <Book className="h-12 w-12 mx-auto" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Студенты не найдены или не выбраны</h3>
-              <p className="text-gray-500">
-                Попробуйте изменить фильтры поиска, или назначьте себе студента.
-              </p>
+              <p className="text-lg font-medium text-gray-900">Ассистенты не найдены</p>
+              {/* <p className="text-gray-500">
+                Попробуйте изменить параметры поиска или выберите себе ассистента.
+              </p> */}
             </div>
           ) : (
               <motion.div 
@@ -311,30 +318,40 @@ const Teach_Dashboard: React.FC = () => {
                       <div className="space-y-2 mb-6">
                         
                         <p className="flex items-center text-sm text-blue-500">
-                          <Send className="h-4 w-4 mr-2" />
+                          <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                            <Send className="h-4 w-4" />
+                          </span>
                           <a href={`https://t.me/${student.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">
                             {student.telegram}
                           </a>
                         </p>
 
                         <p className="flex items-center text-sm text-gray-500">
-                          <GraduationCap className="h-4 w-4 mr-2" />
-                          {student.prog_faculty} ({student.program})
+                          <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                            <GraduationCap className="h-4 w-4" />
+                          </span>
+                          {student.program}
                         </p>
 
                         <p className="flex items-center text-sm text-gray-500">
-                          <Book className="h-4 w-4 mr-2" />
+                          <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                            <Book className="h-4 w-4" />
+                          </span>
                           {DISCIPLINES.find(d => d.value === student.discipline)?.label}, {student.groups_count} {student.groups_count === 1 ? 'группа' : 'группы'}
                         </p>
                         
                         <p className="flex items-center text-sm text-gray-500">
-                          <CalendarDays className="h-4 w-4 mr-2" />
+                          <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                            <CalendarDays className="h-4 w-4" />
+                          </span>
                           {student.start_date ? formatDate(new Date(student.start_date)) : '-'} - {student.end_date ? formatDate(new Date(student.end_date)) : '-'}
                         </p>
 
                         <p className="flex items-center text-sm text-gray-500">
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          {student.assistance_format === 'money' ? 'Материальная оплата' : 'Кредиты'}
+                          <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                            <CreditCard className="h-4 w-4" />
+                          </span>
+                          {student.assistance_format === 'money' ? 'Оплата' : 'Кредиты'}
                         </p>
                       </div>
 
@@ -402,7 +419,7 @@ const Teach_Dashboard: React.FC = () => {
               >
                 <div className="text-center">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Вы уверены, что хотите отозвать выбранного студента?
+                    Вы уверены, что хотите отказаться от выбранного ассистента?
                   </h3>
                   
                   <div className="mt-6 flex justify-center space-x-4">

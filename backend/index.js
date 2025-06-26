@@ -86,8 +86,8 @@ const initDb = async () => {
         debts VARCHAR(100),
         edu_rating VARCHAR(50),
         digitalliteracyscore VARCHAR(20),
-        pythonScore VARCHAR(20),
-        dataAnalysisScore VARCHAR(20),
+        pythonscore VARCHAR(20),
+        dataanalysisscore VARCHAR(20),
         primary_discipline VARCHAR(100),
         primary_group_size INTEGER,
         secondary_discipline VARCHAR(100),
@@ -124,7 +124,7 @@ const initDb = async () => {
         assistance_format VARCHAR(100) CHECK (assistance_format IN ('money', 'credits')),
         start_date DATE NOT NULL,
         end_date DATE NOT NULL CHECK (end_date >= start_date),
-        prog_faculty VARCHAR(255) NOT NULL,
+        -- prog_faculty VARCHAR(255) NOT NULL,
         program VARCHAR(255) NOT NULL,
         active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -333,7 +333,7 @@ app.post('/api/students/:studentId/questionnaire', async (req, res) => {
       pythonscore,
       dataanalysisscore
     } = req.body;
-
+    
     await client.query('BEGIN');
 
     const transformScore = (score) => {
@@ -399,7 +399,7 @@ app.post('/api/students/:studentId/questionnaire', async (req, res) => {
       transformScore(digitalliteracyscore),
       transformScore(pythonscore),
       transformScore(dataanalysisscore),
-      studentId,
+      studentId
     ]);
 
     await client.query('COMMIT');
@@ -413,85 +413,131 @@ app.post('/api/students/:studentId/questionnaire', async (req, res) => {
   }
 });
 
+// Faculties endpoint for filtering
 app.get('/api/faculties', async (req, res) => {
   try {
-    const userId = req.query.userId;
-    const flag = req.query.flag;
-    let query;
-    let queryParams = [];
-    let result;
-    if (flag === undefined) {
-      if (userId) {
-        query = 'SELECT DISTINCT b.prog_faculty FROM bookings b LEFT JOIN student_profiles sp ON b.student_id = sp.user_id WHERE b.teacher_id = $1 AND active = true ORDER BY b.prog_faculty';
-        queryParams = [userId];
-      } else {
-        query = 'SELECT DISTINCT faculty as prog_faculty FROM student_profiles WHERE faculty IS NOT NULL ORDER BY faculty';
-      }
-      result = await pool.query(query, queryParams);
+    const { program } = req.query;
+    let query, queryParams = [];
+    if (program) {
+      query = 'SELECT DISTINCT faculty FROM student_profiles WHERE faculty IS NOT NULL AND program = $1 ORDER BY faculty';
+      queryParams = [program];
     } else {
-      query = 'SELECT DISTINCT prog_faculty FROM bookings WHERE prog_faculty IS NOT NULL AND active = true ORDER BY prog_faculty';
-      result = await pool.query(query);
-      if (result.rows.length === 0) {
-        result.rows.push({ prog_faculty: 'ФКН' }, { prog_faculty: 'ФЭН' }, { prog_faculty: 'ФГН' }, { prog_faculty: 'ФСН' });
-      }
+      query = 'SELECT DISTINCT faculty FROM student_profiles WHERE faculty IS NOT NULL ORDER BY faculty';
     }
-    res.json({ 
-      success: true, 
-      faculties: result.rows.map(row => row.prog_faculty).filter(faculty => faculty !== null)
-    });
+    const result = await pool.query(query, queryParams);
+    res.json({ success: true, faculties: result.rows.map(r => r.faculty).filter(Boolean) });
   } catch (error) {
     console.error('Ошибка получения факультетов:', error);
     return sendErrorResponse(res, 500, 'Ошибка при получении списка факультетов');
   }
 });
 
+app.get('/api/programs', async (req, res) => {
+  try {
+    const { faculty } = req.query;
+    let query, queryParams = [];
+    if (faculty) {
+      query = 'SELECT DISTINCT program FROM student_profiles WHERE program IS NOT NULL AND faculty = $1 ORDER BY program';
+      queryParams = [faculty];
+    } else {
+      query = 'SELECT DISTINCT program FROM student_profiles WHERE program IS NOT NULL ORDER BY program';
+    }
+    const result = await pool.query(query, queryParams);
+    res.json({ success: true, programs: result.rows.map(r => r.program).filter(Boolean) });
+  } catch (error) {
+    console.error('Ошибка получения программ:', error);
+    return sendErrorResponse(res, 500, 'Ошибка при получении списка программ');
+  }
+});
+
 app.get('/api/students', async (req, res) => {
   try {
-    const { search, faculty, rating, discipline } = req.query;
-    
+    const { search, faculty, rating, discipline, program } = req.query;
     let query = `
-      SELECT 
-        un.id AS id,
-        un.first_name, un.last_name, 
-        sp.email, sp.telegram, sp.birthday, sp.citizenship, sp.phone, 
-        sp.faculty, sp.program as edu_program, sp.year, sp.debts, sp.edu_rating,
-        sp.digitalliteracyscore,
-        sp.pythonscore,
-        sp.dataanalysisscore,
-        sp.primary_discipline, sp.primary_group_size,
-        sp.secondary_discipline, sp.secondary_group_size, 
-        sp.digital_literacy_answers, sp.data_analysis_answers, sp.python_programming_answers, sp.machine_learning_answers, 
-        sp.motivation_text, sp.achievements, sp.experience, 
-        sp.teacher_email
+      WITH student_bookings AS (
+        SELECT 
+            student_id,
+            json_agg(
+                json_build_object(
+                    'program', program,
+                    'groups', groups_count
+                )
+            ) as program_details,
+            COUNT(DISTINCT program) as program_count,
+            SUM(groups_count) as total_groups
+        FROM (
+            SELECT 
+                student_id,
+                program,
+                SUM(groups_count) as groups_count
+            FROM bookings
+            WHERE active = true
+            GROUP BY student_id, program
+        ) sub
+        GROUP BY student_id
+      )
+      SELECT
+          un.id AS id,
+          un.first_name,
+          un.last_name,
+          sp.email,
+          sp.telegram,
+          sp.birthday,
+          sp.citizenship,
+          sp.phone,
+          sp.faculty,
+          sp.program as edu_program,
+          sp.year,
+          sp.debts,
+          sp.edu_rating,
+          sp.digitalliteracyscore,
+          sp.pythonscore,
+          sp.dataanalysisscore,
+          sp.primary_discipline,
+          sp.primary_group_size,
+          sp.secondary_discipline,
+          sp.secondary_group_size,
+          sp.digital_literacy_answers,
+          sp.data_analysis_answers,
+          sp.python_programming_answers,
+          sp.machine_learning_answers,
+          sp.motivation_text,
+          sp.achievements,
+          sp.experience,
+          sp.teacher_email,
+          COALESCE(sb.program_details, '[]'::json) as booked_programs
       FROM users_new un
       JOIN student_profiles sp ON un.id = sp.user_id
-      WHERE un.role = 'student' and sp.questionnaire_completed = true
+      LEFT JOIN student_bookings sb ON un.id = sb.student_id
+      WHERE un.role = 'student'
+      AND sp.questionnaire_completed = true
+      AND (
+        sb.student_id IS NULL 
+        OR (sb.program_count <= 2 and sb.total_groups < 4)
+      )
     `;
-    
     const queryParams = [];
-    
     if (search) {
       queryParams.push(`%${search}%`);
       query += ` AND (LOWER(un.first_name) LIKE LOWER($${queryParams.length}) OR LOWER(un.last_name) LIKE LOWER($${queryParams.length}))`;
     }
-    
     if (faculty) {
       queryParams.push(faculty);
       query += ` AND sp.faculty = $${queryParams.length}`;
     }
-    
+    if (program) {
+      queryParams.push(program);
+      query += ` AND sp.program = $${queryParams.length}`;
+    }
     if (rating) {
       queryParams.push(parseFloat(rating));
       query += ` AND sp.edu_rating >= $${queryParams.length}`;
     }
-    
     if (discipline) {
       queryParams.push(discipline);
       query += ` AND ($${queryParams.length} = sp.primary_discipline OR $${queryParams.length} = sp.secondary_discipline OR sp.secondary_discipline is NULL)`;
     }
-    
     const result = await pool.query(query, queryParams);
-
     res.json({ success: true, students: result.rows });
   } catch (error) {
     console.error('Ошибка получения списка студентов:', error);
@@ -506,7 +552,7 @@ app.get('/api/teachers/:teacherId/students', async (req, res) => {
       SELECT 
         un.id AS id,
         b.discipline,
-        b.prog_faculty,
+        -- b.prog_faculty,
         b.program,
         b.groups_count,
         b.assistance_format,
@@ -545,11 +591,13 @@ app.get('/api/students/:studentId/disciplines', async (req, res) => {
         b.id,
         t.first_name AS teacher_first_name,
         t.last_name  AS teacher_last_name,
+        t.email AS teacher_email,
         b.discipline,
         b.groups_count,
         b.assistance_format,
         b.start_date,
-        b.end_date
+        b.end_date,
+        b.program
       FROM bookings b
       JOIN users_new t ON b.teacher_id = t.id
       WHERE b.student_id = $1 AND b.active = true;
@@ -563,7 +611,7 @@ app.get('/api/students/:studentId/disciplines', async (req, res) => {
 
 app.post('/api/bookings', async (req, res) => {
   try {
-    const { studentId, teacherId, discipline, groupsCount, assistanceFormat, startDate, endDate, program, prog_faculty } = req.body;
+    const { studentId, teacherId, discipline, groupsCount, assistanceFormat, startDate, endDate, program } = req.body;
     
     if (!startDate || !endDate) {
       return sendErrorResponse(res, 400, 'Укажите даты начала и окончания');
@@ -579,11 +627,28 @@ app.post('/api/bookings', async (req, res) => {
       return sendErrorResponse(res, 400, 'Дата окончания не может быть раньше даты начала');
     }
 
+    // Check existing bookings for the same student, discipline and program
+    const existingBookings = await pool.query(
+      `SELECT SUM(groups_count) as total_groups
+       FROM bookings
+       WHERE student_id = $1 
+       AND discipline = $2 
+       AND program = $3
+       AND active = true`,
+      [studentId, discipline, program]
+    );
+
+    const currentGroups = parseInt(existingBookings.rows[0].total_groups) || 0;
+    if (currentGroups + groupsCount > 2) {
+      const availableGroups = 2 - currentGroups;
+      return sendErrorResponse(res, 400, `Студент уже имеет ${currentGroups} групп для данной дисциплины и программы. Доступно для бронирования: ${availableGroups} ${availableGroups === 1 ? 'группа' : 'группы'}`);
+    }
+
     const result = await pool.query(
-      `INSERT INTO bookings (student_id, teacher_id, discipline, groups_count, assistance_format, start_date, end_date, program, prog_faculty)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO bookings (student_id, teacher_id, discipline, groups_count, assistance_format, start_date, end_date, program)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [studentId, teacherId, discipline, groupsCount, assistanceFormat, startDate, endDate, program, prog_faculty]
+      [studentId, teacherId, discipline, groupsCount, assistanceFormat, startDate, endDate, program]
     );
     
     res.status(201).json({ success: true, booking: result.rows[0] });

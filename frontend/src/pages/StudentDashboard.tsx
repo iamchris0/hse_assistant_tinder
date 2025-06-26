@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import Header from '../components/Header';
-import { Book, Send, UsersRound, CreditCard, CalendarDays } from 'lucide-react';
+import { Book, Mail, CreditCard, CalendarDays, GraduationCap } from 'lucide-react';
 
 
 interface Disciplines {
@@ -14,6 +14,8 @@ interface Disciplines {
   assistance_format: string;
   start_date: Date | null;
   end_date: Date | null;
+  teacher_email: string;
+  program: string;
 }
 
 const DISCIPLINES = [
@@ -105,9 +107,9 @@ const Stud_Dashboard: React.FC = () => {
               <div className="text-gray-400 mb-2">
                 <Book className="h-12 w-12 mx-auto" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Вас пока не выбрали 😢</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Вас пока не забронировали 😢</h3>
               <p className="text-gray-500">
-                Ожидайте согласования бронирования от преподавателя или обратитесь к соответствующим лицам.
+              Ожидайте подтверждения бронирования от преподавателя.
               </p>
             </div>
           ) : (
@@ -126,32 +128,40 @@ const Stud_Dashboard: React.FC = () => {
 
                     <div className="space-y-2 mb-6">
                       <p className="flex items-center text-sm text-blue-500">
-                        <Send className="h-4 w-4 mr-2" />
-                        {/* <a href={`https://t.me/${student.teacher_telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">
-                          {student.teacher_telegram}
-                        </a> */}
-                        Тут будет тг
+                        <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                          <Mail className="h-4 w-4" />
+                        </span>
+                        {student.teacher_email || 'Email не указан'}
                       </p>
 
                       <p className="flex items-center text-sm text-gray-500">
-                        <Book className="h-4 w-4 mr-2" />
-                        {DISCIPLINES.find(discipline => discipline.value === student.discipline)?.label || student.discipline}
+                        <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                          <GraduationCap className="h-4 w-4" />
+                        </span>
+                        {student.program || 'Программа не указана'}
                       </p>
 
                       <p className="flex items-center text-sm text-gray-500">
-                        <UsersRound className="h-4 w-4 mr-2" />
-                        {student.groups_count} {student.groups_count === 1 ? 'группа' : 'группы'}
+                        <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                          <Book className="h-4 w-4" />
+                        </span>
+                        {DISCIPLINES.find(discipline => discipline.value === student.discipline)?.label || student.discipline} ({student.groups_count} {student.groups_count === 1 ? 'группа' : 'группы'})
                       </p>
 
                       <p className="flex items-center text-sm text-gray-500">
-                          <CalendarDays className="h-4 w-4 mr-2" />
-                          {student.start_date ? formatDate(new Date(student.start_date)) : '-'} - {student.end_date ? formatDate(new Date(student.end_date)) : '-'}
-                        </p>
+                        <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                          <CalendarDays className="h-4 w-4" />
+                        </span>
+                        {student.start_date ? formatDate(new Date(student.start_date)) : '-'} - {student.end_date ? formatDate(new Date(student.end_date)) : '-'}
+                      </p>
 
                       <p className="flex items-center text-sm text-gray-500">
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        {student.assistance_format === 'money' ? 'Денежная оплата' : 'Кредиты'}
+                        <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                          <CreditCard className="h-4 w-4" />
+                        </span>
+                        {student.assistance_format === 'money' ? 'Оплата' : 'Кредиты'}
                       </p>
+
                     </div>
                   </div>
                 </div>

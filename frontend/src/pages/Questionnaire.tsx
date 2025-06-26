@@ -1,26 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ChevronRight, ChevronLeft, BookOpen } from 'lucide-react';
 
 const BLOCKS = [
-  { id: 'personal', title: 'Личная информация' },
+  { id: 'personal', title: 'Информация о себе' },
   { id: 'education', title: 'Образование' },
   { id: 'primary', title: 'Приоритетная дисциплина' },
-  { id: 'secondary', title: 'Вторая дисциплина' },
+  { id: 'secondary', title: 'Второй приоритет' },
   { id: 'motivation', title: 'Мотивация' },
   { id: 'recommendations', title: 'Рекомендации' }
 ];
 
 const DISCIPLINES = [
-  { value: 'data_analysis', label: 'Анализ данных' },
+  { value: 'digital_literacy', label: 'Цифровая грамотность' },
   { value: 'python_programming', label: 'Программирование на Python' },
-  { value: 'machine_learning', label: 'Машинное обучение' },
-  { value: 'digital_literacy', label: 'Цифровая грамотность' }
+  { value: 'data_analysis', label: 'Анализ данных' },
+  { value: 'machine_learning', label: 'Машинное обучение' }
 ];
 
-const DISCIPLINE_QUESTIONS: Record<string, string[]> = {
+const DISCIPLINE_QUESTIONS: Record<string, (string | ReactNode)[]> = {
   data_analysis: [
     "Как вы объясните студенту разницу между медианой и средним?",
     "Анализируем датасет по пиццериям. Задача найти название ресторана (Restaurant),\
@@ -28,7 +28,7 @@ const DISCIPLINE_QUESTIONS: Record<string, string[]> = {
      поясните каждую ошибку, которую допустил студент:",
   ],
   digital_literacy: [
-    "Приложите ссылку на вашу попытку сдачи экзамена в разделе Случайный вариант Открытого банка НЭ: https://edu.hse.ru/mod/quiz/view.php?id=507480",
+    <>Приложите ссылку на вашу попытку сдачи экзамена в разделе Случайный <a href="https://edu.hse.ru/mod/quiz/view.php?id=507480" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">вариант</a> Открытого банка НЭ:</>,
     "Выберите вопрос из вашей случайной попытки и представьте, что к вам обратился студент с просьбой его пояснить. Как вы ответите?",
     "Расскажите, на чём бы вы сфокусировались, если бы вас попросили провести консультацию по Независимому экзамену?"
   ],
@@ -80,11 +80,11 @@ const Questionnaire: React.FC = () => {
     motivationText: '',
     achievements: '',
     experience: '',
-    recommendationAvailable: '',
+    recommendationAvailable: 'no',
     teacherEmail: '',
     digitalliteracyscore: '',
     pythonscore: '',
-    dataanalysisScore: ''
+    dataanalysisscore: ''
   });
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -105,7 +105,14 @@ const Questionnaire: React.FC = () => {
         if (!formData.program) newErrors.program = 'Пожалуйста, укажите образовательную программу.';
         if (!formData.year) newErrors.year = 'Пожалуйста, выберите курс.';
         if (!formData.debts) newErrors.debts = 'Пожалуйста, укажите, есть ли задолженности.';
-        if (!formData.edu_rating) newErrors.edu_rating = 'Пожалуйста, укажите ваш рейтинг.';
+        if (!formData.edu_rating) {
+          newErrors.edu_rating = 'Пожалуйста, укажите ваш рейтинг.';
+        } else {
+          const ratingRegex = /^\d+\s+из\s+\d+$/;
+          if (!ratingRegex.test(formData.edu_rating)) {
+            newErrors.edu_rating = 'Рейтинг должен быть в формате "1 из 100"';
+          }
+        }
         break;
       case 'primary':
         if (!formData.primaryDiscipline) newErrors.primaryDiscipline = 'Пожалуйста, выберите дисциплину.';
@@ -142,7 +149,7 @@ const Questionnaire: React.FC = () => {
           debts: '',
           digitalliteracyscore: '',
           pythonscore: '',
-          dataanalysisScore: '',
+          dataanalysisscore: '',
           edu_rating: '',
         }));
         break;
@@ -252,7 +259,7 @@ const Questionnaire: React.FC = () => {
         ...formData,
         digitalliteracyscore: transformScore(formData.digitalliteracyscore),
         pythonscore: transformScore(formData.pythonscore),
-        dataanalysisscore: transformScore(formData.dataanalysisScore),
+        dataanalysisscore: transformScore(formData.dataanalysisscore),
         year: formData.year ? parseInt(formData.year, 10) : null, // Ensure year is a number
         primaryGroupSize: formData.primaryGroupSize || 1,
         secondaryGroupSize: formData.secondaryGroupSize || 1,
@@ -296,7 +303,7 @@ const Questionnaire: React.FC = () => {
             name="faculty"
             value={formData.faculty}
             onChange={handleInputChange}
-            className={`mt-1 text-sm w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 ${errors.faculty ? 'border-red-500' : ''}`}
+            className={`mt-1 text-sm w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 ${errors.faculty ? 'border-red-500' : ''}`}
             placeholder="ФКН"
           />
           {errors.faculty && <p className="text-red-500 text-sm mt-1 pl-2">{errors.faculty}</p>}
@@ -311,7 +318,7 @@ const Questionnaire: React.FC = () => {
             name="program"
             value={formData.program}
             onChange={handleInputChange}
-            className={`mt-1 text-sm w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 ${errors.program ? 'border-red-500' : ''}`}
+            className={`mt-1 text-sm w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 ${errors.program ? 'border-red-500' : ''}`}
             placeholder="ПМИ"
           />
           {errors.program && <p className="text-red-500 text-sm mt-1 pl-2">{errors.program}</p>}
@@ -325,7 +332,7 @@ const Questionnaire: React.FC = () => {
             name="year"
             value={formData.year}
             onChange={handleInputChange}
-            className={`mt-1 text-sm w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 ${errors.year ? 'border-red-500' : ''}`}
+            className={`mt-1 text-sm w-full rounded-md p-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 ${errors.year ? 'border-red-500' : ''}`}
           >
             <option value="">Выберите курс</option>
             {[1, 2, 3, 4, 5, 6].map((year) => (
@@ -345,7 +352,7 @@ const Questionnaire: React.FC = () => {
             name="debts"
             value={formData.debts}
             onChange={handleInputChange}
-            className={`mt-1 text-sm w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 ${errors.debts ? 'border-red-500' : ''}`}
+            className={`mt-1 text-sm w-full p-2 rounded-md border-gray-500 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 ${errors.debts ? 'border-red-500' : ''}`}
           >
             <option value="">Выберите...</option>
             <option value="Нет">Нет</option>
@@ -359,14 +366,14 @@ const Questionnaire: React.FC = () => {
   
         <div className="flex flex-col col-span-2">
           <label className="text-lg font-semibold text-gray-700 pl-2">
-            Ваш рейтинг <span className="text-red-500">*</span>
+            Ваш <u>текущий</u> рейтинг <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             name="edu_rating"
             value={formData.edu_rating}
             onChange={handleInputChange}
-            className={`mt-1 text-sm w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 ${errors.edu_rating ? 'border-red-500' : ''}`}
+            className={`mt-1 text-sm w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-2 ${errors.edu_rating ? 'border-red-500' : ''}`}
             placeholder="1 из 100"
           />
           {errors.edu_rating && <p className="text-red-500 text-sm mt-1 pl-2">{errors.edu_rating}</p>}
@@ -375,7 +382,7 @@ const Questionnaire: React.FC = () => {
   
       <div className="mt-8">
         <h3 className="text-lg font-medium mb-4 text-center">
-          Оценки за экзамены
+          Оценки за независимые экзамены
         </h3>
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
@@ -392,7 +399,7 @@ const Questionnaire: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {[
                 { name: 'Цифровая грамотность', field: 'digitalliteracyscore' },
-                { name: 'Python', field: 'pythonscore' },
+                { name: 'Программирование', field: 'pythonscore' },
                 { name: 'Анализ данных', field: 'dataanalysisscore' }
               ].map((exam, index) => (
                 <tr key={exam.field} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -445,7 +452,7 @@ const Questionnaire: React.FC = () => {
       case 'personal':
         return (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">Личная информация</h2>
+            <h2 className="text-xl font-semibold mb-4">Информация о себе</h2>
             <div>
               <label className="block text-sm font-medium text-gray-700 pl-3">
                 Telegram <span className="text-red-500">*</span>
@@ -456,14 +463,14 @@ const Questionnaire: React.FC = () => {
                 required
                 value={formData.telegram}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3 ${errors.telegram ? 'border-red-500' : ''}`}
+                className={`mt-1 block w-full p-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3 ${errors.telegram ? 'border-red-500' : ''}`}
                 placeholder="@username"
               />
               {errors.telegram && <p className="text-red-500 text-sm mt-1 pl-3">{errors.telegram}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 pl-3">
-                День рождения <span className="text-red-500">*</span>
+                Дата рождения <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -485,14 +492,14 @@ const Questionnaire: React.FC = () => {
                 required
                 value={formData.citizenship}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3 ${errors.citizenship ? 'border-red-500' : ''}`}
+                className={`mt-1 block w-full p-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3 ${errors.citizenship ? 'border-red-500' : ''}`}
                 placeholder="РФ"
               />
               {errors.citizenship && <p className="text-red-500 text-sm mt-1 pl-3">{errors.citizenship}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 pl-3">
-                Электронная почта <u>HSE</u> <span className="text-red-500">*</span>
+                Электронная почта <u>EDU.HSE</u> <span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
@@ -500,7 +507,7 @@ const Questionnaire: React.FC = () => {
                 required
                 value={formData.email}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3 ${errors.email ? 'border-red-500' : ''}`}
+                className={`mt-1 block w-full p-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3 ${errors.email ? 'border-red-500' : ''}`}
                 placeholder="student@edu.hse.com"
                 pattern="@edu\.hse"
               />
@@ -516,7 +523,7 @@ const Questionnaire: React.FC = () => {
                 required
                 value={formData.phone}
                 onChange={handleInputChange}
-                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3 ${errors.phone ? 'border-red-500' : ''}`}
+                className={`mt-1 block w-full p-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-3 ${errors.phone ? 'border-red-500' : ''}`}
                 placeholder="+7 (***) ***-**-**"
               />
               {errors.phone && <p className="text-red-500 text-sm mt-1 pl-3">{errors.phone}</p>}
@@ -553,7 +560,7 @@ const Questionnaire: React.FC = () => {
                 name="primaryDiscipline"
                 value={formData.primaryDiscipline}
                 onChange={handleInputChange}
-                className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-1 ${errors.primaryDiscipline ? 'border-red-500' : ''}`}
+                className={`block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-1 ${errors.primaryDiscipline ? 'border-red-500' : ''}`}
               >
                 <option value="">-</option>
                 {DISCIPLINES.map((discipline) => (
@@ -596,7 +603,7 @@ const Questionnaire: React.FC = () => {
                   <img src="/images/andan.png" alt="Andan" className="mt-2" />
                 )}
                 <textarea
-                  className="mt-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-y pl-2"
+                  className="mt-1 rounded-md pt-1 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-y pl-2"
                   name={`primaryQuestion${index + 1}`}
                   value={formData[`primaryQuestion${index + 1}` as keyof typeof formData] || ''}
                   onChange={handleInputChange}
@@ -613,7 +620,7 @@ const Questionnaire: React.FC = () => {
           <div className="space-y-6">
             <div className="space-y-2">
               <h1 className="text-xl font-semibold">Дисциплина 2</h1>
-              <p className="text-sm text-gray-500">Какой еще курс (блок курсов) вы рассматриваете для ассистирования?</p>
+              <p className="text-sm text-gray-500">Какой <b>еще курс (блок курсов)</b> вы рассматриваете для ассистирования?</p>
               <p className="text-sm text-gray-500">
                 Со списком дисциплин и образовательных программ, на которых они читаются, можно ознакомиться по{' '}
                 <a
@@ -635,9 +642,9 @@ const Questionnaire: React.FC = () => {
                 name="secondaryDiscipline"
                 value={formData.secondaryDiscipline}
                 onChange={handleInputChange}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-1"
+                className="block w-full p-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-1"
               >
-                <option value="">Приоритета нет</option>
+                <option value="">Не рассматриваю другие дисциплины</option>
                 {DISCIPLINES.filter(discipline => discipline.value !== formData.primaryDiscipline).map((discipline) => (
                   <option key={discipline.value} value={discipline.value}>
                     {discipline.label}
@@ -679,7 +686,7 @@ const Questionnaire: React.FC = () => {
                       <img src="/images/andan.png" alt="Andan" className="mt-2" />
                     )}
                     <textarea
-                      className="mt-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-y pl-2"
+                      className="mt-1 rounded-md pt-1 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-y pl-2"
                       name={`secondaryQuestion${index + 1}`}
                       value={formData[`secondaryQuestion${index + 1}` as keyof typeof formData] || ''}
                       onChange={handleInputChange}
@@ -700,7 +707,7 @@ const Questionnaire: React.FC = () => {
   
             <div className="flex flex-col">
               <label className="text-lg font-semibold text-gray-700">
-                Пожалуйста, кратко опишите свою мотивацию быть учебным ассистентом и учебные достижения
+              Расскажите, почему вы хотите быть ассистентом:
               </label>
               <textarea
                 name="motivationText"
@@ -714,7 +721,7 @@ const Questionnaire: React.FC = () => {
   
             <div className="flex flex-col">
               <label className="text-lg font-semibold text-gray-700">
-                Расскажите о ваших достижениях
+                Расскажите о ваших достижениях:
               </label>
               <textarea
                 name="achievements"
@@ -730,16 +737,13 @@ const Questionnaire: React.FC = () => {
               <label className="text-lg font-semibold text-gray-700">
                 Изучали ли вы аналогичные курсы раньше?
               </label>
-              <p className="text-sm text-gray-500 mb-1">
-                Опишите, пожалуйста, ваш опыт в этой области
-              </p>
               <textarea
                 name="experience"
                 value={formData.experience}
                 onChange={handleInputChange}
                 rows={4}
                 className="mt-1 w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-y p-2"
-                placeholder="Ваш опыт..."
+                placeholder="Опишите, пожалуйста, ваш опыт в этой области"
               />
             </div>
           </div>
@@ -754,17 +758,13 @@ const Questionnaire: React.FC = () => {
               <label className="text-lg font-semibold text-gray-700">
                 Может ли кто-то из преподавателей дать вам рекомендацию? <span className="text-red-500">*</span>
               </label>
-              <p className="text-sm text-gray-500 mb-1">
-                Выберите «Да» или «Нет»
-              </p>
               <select
                 name="recommendationAvailable"
                 onChange={handleInputChange}
                 className={`w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 ${errors.recommendationAvailable ? 'border-red-500' : ''}`}
               >
-                <option value="">Выберите...</option>
-                <option value="yes">Да</option>
                 <option value="no">Нет</option>
+                <option value="yes">Да</option>
               </select>
               {errors.recommendationAvailable && <p className="text-red-500 text-sm mt-1">{errors.recommendationAvailable}</p>}
             </div>
@@ -849,13 +849,13 @@ const Questionnaire: React.FC = () => {
                 Я помощник <span style={{ color: '#dcff06', textShadow: '1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black' }}>Data Culture</span>. Моя задача — помогать преподавателям и студентам.
               </h5>
               <p className="text-gray-600 mb-8">
-                Пожалуйста, заполните анкету, чтобы преподаватели смогли вас выбрать.
+                Пожалуйста, заполните анкету, чтобы преподаватели могли вас выбрать.
               </p>
               <button
                 onClick={handleStartForm}
                 className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Начать заполнение
+                Заполнить
               </button>
             </div>
           </motion.div>

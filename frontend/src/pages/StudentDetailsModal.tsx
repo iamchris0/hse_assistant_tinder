@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -35,6 +35,10 @@ interface Student {
   achievements: string;
   experience: string;
   teacher_email: string;
+  booked_programs: Array<{
+    program: string;
+    groups: number;
+  }>;
 }
 
 interface StudentDetailsModalProps {
@@ -89,6 +93,18 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({ student, isOp
     motivationAchievements: false,
     recommendation: false,
   });
+
+  useEffect(() => {
+    // Reset all sections when modal closes or student changes
+    setSections({
+      personalInfo: false,
+      educationInfo: false,
+      examGrades: false,
+      disciplines: false,
+      motivationAchievements: false,
+      recommendation: false,
+    });
+  }, [isOpen, student?.id]);
 
   const toggleSection = (section: keyof typeof sections) => {
     setSections((prev) => ({ ...prev, [section]: !prev[section] }));
@@ -374,12 +390,8 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({ student, isOp
                                 <p className="text-base font-medium text-gray-700 mb-2 break-words max-w-full overflow-y-auto">{`${index + 1}. ${question}`}</p>
                                 <div className="flex items-start space-x-3">
                                   <MessageSquare className="h-5 w-5 text-blue-500 flex-shrink-0 mt-1" />
-                                  <p className="text-sm text-gray-600 break-words max-w-full max-h-40 overflow-y-auto">
-                                    {getDisciplineAnswers(student.primary_discipline)[index]?.split('\n').map((line, idx) => (
-                                      <p key={idx} className="text-sm text-gray-600 break-words max-w-full max-h-40 overflow-y-auto">
-                                        {line}
-                                      </p>
-                                    )) || '-'}
+                                  <p className="text-sm text-gray-600 break-words max-w-full max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                    {getDisciplineAnswers(student.primary_discipline)[index] || '-'}
                                   </p>
                                 </div>
                               </div>
@@ -403,12 +415,8 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({ student, isOp
                                 <p className="text-base font-medium text-gray-700 mb-2 break-words max-w-full overflow-y-auto">{`${index + 1}. ${question}`}</p>
                                 <div className="flex items-start space-x-3">
                                   <MessageSquare className="h-5 w-5 text-blue-500 flex-shrink-0 mt-1" />
-                                  <p className="text-sm text-gray-600 break-words max-w-full max-h-40 overflow-y-auto">
-                                    {getDisciplineAnswers(student.secondary_discipline)[index]?.split('\n').map((line, idx) => (
-                                      <p key={idx} className="text-sm text-gray-600 break-words max-w-full max-h-40 overflow-y-auto">
-                                        {line}
-                                      </p>
-                                    )) || '-'}
+                                  <p className="text-sm text-gray-600 break-words max-w-full max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                    {getDisciplineAnswers(student.secondary_discipline)[index] || '-'}
                                   </p>
                                 </div>
                               </div>
@@ -448,21 +456,21 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({ student, isOp
                         <Target className="h-5 w-5 text-blue-500 flex-shrink-0" />
                         <div>
                           <p className="text-base font-medium text-gray-700">Мотивация</p>
-                          <p className="text-sm text-gray-600">{student.motivation_text || 'Не указано'}</p>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{student.motivation_text || 'Не указано'}</p>
                         </div>
                       </div>
                       <div className="flex items-start space-x-3">
                         <Award className="h-5 w-5 text-blue-500 flex-shrink-0" />
                         <div>
                           <p className="text-base font-medium text-gray-700">Достижения</p>
-                          <p className="text-sm text-gray-600">{student.achievements || 'Не указано'}</p>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{student.achievements || 'Не указано'}</p>
                         </div>
                       </div>
                       <div className="flex items-start space-x-3">
                         <Briefcase className="h-5 w-5 text-blue-500 flex-shrink-0" />
                         <div>
                           <p className="text-base font-medium text-gray-700">Опыт</p>
-                          <p className="text-sm text-gray-600">{student.experience || 'Не указано'}</p>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{student.experience || 'Не указано'}</p>
                         </div>
                       </div>
                     </motion.div>
@@ -474,7 +482,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({ student, isOp
                     onClick={() => toggleSection('recommendation')}
                     className="w-full flex justify-between items-center text-lg font-semibold text-gray-900 focus:outline-none"
                   >
-                    Рекомендация
+                    Рекомендации
                     {sections.recommendation ? (
                       <ChevronUp className="h-5 w-5 text-gray-600" />
                     ) : (
@@ -496,7 +504,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({ student, isOp
                           <p className="text-base font-medium text-gray-700">
                             Email преподавателя для рекомендации
                           </p>
-                          <p className="text-sm text-gray-600">{student.teacher_email || '-'}</p>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{student.teacher_email || '-'}</p>
                         </div>
                       </div>
                     </motion.div>
